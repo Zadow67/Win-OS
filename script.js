@@ -177,3 +177,79 @@ function getSmallIcon(name, isDir) {
     return getFileIconHTML(name, false, 18);
 }
 
+function buildBreadcrumb(path, winId) {
+    var parts = path.replace(/\//g, '\\').split('\\').filter(function(p) { return p !== ''; });
+    var html = '';
+    var displayNames = { 'C:': 'Local Disk (C:)', 'Users': 'Users' };
+
+    var pathSoFar = '';
+    for (var i = 0; i < parts.length; i++) {
+        if (i > 0) html += '<span class="explorer-bc-sep"><span class="material-symbols-rounded">chevron_right</span></span>';
+        pathSoFar += (i === 0 ? '' : '\\') + parts[i];
+        var display = displayNames[parts[i]] || parts[i];
+        var escapedP = pathSoFar.replace(/\\/g, '\\\\');
+        html += '<span class="explorer-bc-seg" onclick="window.vfsState.goTo(\'' + winId + '\',\'' + escapedP + '\')">' + display + '</span>';
+    }
+    return html;
+}
+
+function getAddressBarIcon(path) {
+    var lastPart = path.split('\\').filter(function(p) { return p !== ''; }).pop();
+    if (lastPart && folderIconMap[lastPart]) return './img/icon/win/' + folderIconMap[lastPart] + '-sm.png';
+    if (path === 'C:') return './img/icon/win/disk-sm.png';
+    return './img/icon/win/folder-sm.png';
+}
+
+function buildNavItem(icon, label, path, winId, opts) {
+    opts = opts || {};
+    var isActive = currentVfsPath === path;
+    var hasChildren = false;
+    if (path) {
+        var node = getVfsNode(path);
+        if (node && node.type === 'dir') {
+            var childKeys = Object.keys(node.children);
+            for (var k = 0; k < childKeys.length; k++) {
+                if (node.children[childKeys[k]].type === 'dir') { hasChildren = true; break; }
+            }
+        }
+    }
+
+    var arrowClass = 'exp-arrow' + (hasChildren ? '' : ' invisible') + (opts.open ? ' rotated' : '');
+    var titleClass = 'exp-droptitle' + (isActive ? ' active' : '');
+    var escapedPath = path ? path.replace(/\\/g, '\\\\') : '';
+
+    var html = '<div class="exp-dropdown">';
+    html += '<div class="' + titleClass + '" onclick="window.vfsState.goTo(\'' + winId + '\', \'' + escapedPath + '\')">';
+
+    if (hasChildren) {
+        html += '<span class="' + arrowClass + '" onclick="event.stopPropagation(); explorerToggleTree(this, \'' + winId + '\', \'' + escapedPath + '\')">&#9654;</span>';
+    } else {
+        html += '<span class="exp-arrow invisible">&#9654;</span>';
+    }
+
+    html += '<img class="exp-nav-icon" src="./img/icon/win/' + icon + '-sm.png" onerror="this.src=\'./img/icon/win/folder-sm.png\'">';
+    html += '<span class="exp-nav-label">' + label + '</span>';
+
+    if (opts.pinned) {
+        html += '<span class="material-symbols-rounded exp-pin-icon" style="font-size:12px;">push_pin</span>';
+    }
+
+    html += '</div>';
+
+    if (opts.open && hasChildren) {
+        html += '<div class="exp-dropcontent">';
+        var node = getVfsNode(path);
+        var keys = Object.keys(node.children);
+        for (var c = 0; c < keys.length; c++) {
+            if (node.children[keys[c]].type === 'dir') {
+                var childIcon = folderIconMap[keys[c]] || 'folder';
+                html += buildNavItem(childIcon, keys[c], path + '\\' + keys[c], winId, {});
+            }
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
