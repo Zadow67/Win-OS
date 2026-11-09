@@ -280,3 +280,35 @@ body {
     display: block;
 }
 
+
+.tb-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+
+.tb-sys-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.tb-sys-icons:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tb-sys-icon {
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) invert(1);
+    object-fit: contain;
+}
+

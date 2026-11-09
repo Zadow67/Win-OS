@@ -404,3 +404,272 @@ function explorerSelectItem(el, name, e) {
     else explorerSelectedItems.push(name);
 }
 
+function formatFileDate() {
+    var d = new Date();
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' +
+        (d.getHours() % 12 || 12) + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes() + ' ' + (d.getHours() >= 12 ? 'PM' : 'AM');
+}
+
+function getFileType(name, isDir) {
+    if (isDir) return 'File folder';
+    var ext = name.split('.').pop().toLowerCase();
+    var types = { 'txt': 'Text Document', 'doc': 'Document', 'exe': 'Application', 'lnk': 'Shortcut',
+        'jpg': 'JPEG Image', 'png': 'PNG Image', 'mp3': 'MP3 Audio', 'mp4': 'MP4 Video',
+        'm3u': 'Playlist File', 'pdf': 'PDF Document' };
+    return types[ext] || (ext.toUpperCase() + ' File');
+}
+
+window.vfsState = {
+    renderExplorer: function (winId) {
+        if (explorerHistoryIdx < 0) explorerPushHistory(currentVfsPath);
+
+        var node = getVfsNode(currentVfsPath);
+
+        var ribbon = '<div class="explorer-ribbon">' +
+            '<div class="explorer-ribbon-sec">' +
+            '<button class="explorer-ribbon-btn primary" onclick="window.vfsState.newFolder(\'' + winId + '\')" title="New folder"><img src="./img/icon/ui/new.png"><span>New</span></button>' +
+            '</div>' +
+            '<div class="explorer-ribbon-sec">' +
+            '<button class="explorer-ribbon-btn" onclick="explorerCut(\'' + winId + '\', explorerSelectedItems[0])" title="Cut (Ctrl+X)"><img src="./img/icon/ui/cut.png"></button>' +
+            '<button class="explorer-ribbon-btn" onclick="explorerCopy(\'' + winId + '\', explorerSelectedItems[0])" title="Copy (Ctrl+C)"><img src="./img/icon/ui/copy.png"></button>' +
+            '<button class="explorer-ribbon-btn" onclick="explorerPaste(\'' + winId + '\')" title="Paste (Ctrl+V)"><img src="./img/icon/ui/paste.png"></button>' +
+            '<button class="explorer-ribbon-btn" onclick="if(explorerSelectedItems[0]) explorerRename(\'' + winId + '\', explorerSelectedItems[0])" title="Rename (F2)"><img src="./img/icon/ui/rename.png"></button>' +
+            '<button class="explorer-ribbon-btn" title="Share"><img src="./img/icon/ui/share.png"></button>' +
+            '<button class="explorer-ribbon-btn" onclick="if(explorerSelectedItems[0]) explorerDelete(\'' + winId + '\', explorerSelectedItems[0])" title="Delete (Del)"><span class="material-symbols-rounded" style="font-size:16px; color:#c42b1c;">delete</span></button>' +
+            '</div>' +
+            '<div class="explorer-ribbon-sec">' +
+            '<button class="explorer-ribbon-btn" title="Sort"><img src="./img/icon/ui/sort.png"><span>Sort</span></button>' +
+            '<button class="explorer-ribbon-btn" title="View" onclick="explorerCycleView(\'' + winId + '\')"><img src="./img/icon/ui/view.png"><span>View</span></button>' +
+            '</div>' +
+            '<button class="explorer-ribbon-more" title="See more">&#8943;</button>' +
+            '</div>';
+
+        var canBack = explorerHistoryIdx > 0;
+        var canFwd = explorerHistoryIdx < explorerHistory.length - 1;
+        var canUp = currentVfsPath.split('\\').filter(function(p) { return p; }).length > 1;
+
+        var addrIcon = getAddressBarIcon(currentVfsPath);
+        var breadcrumb = buildBreadcrumb(currentVfsPath, winId);
+
+        var toolbar = '<div class="explorer-toolbar">' +
+            '<button class="explorer-nav-btn' + (canBack ? '' : ' disabled') + '" onclick="window.vfsState.goBack(\'' + winId + '\')" title="Back (Alt+Left)"><span class="material-symbols-rounded">arrow_back</span></button>' +
+            '<button class="explorer-nav-btn' + (canFwd ? '' : ' disabled') + '" onclick="window.vfsState.goForward(\'' + winId + '\')" title="Forward (Alt+Right)"><span class="material-symbols-rounded">arrow_forward</span></button>' +
+            '<button class="explorer-nav-btn' + (canUp ? '' : ' disabled') + '" onclick="window.vfsState.goUp(\'' + winId + '\')" title="Up (Alt+Up)"><span class="material-symbols-rounded">arrow_upward</span></button>' +
+            '<div class="explorer-address-bar" onclick="explorerFocusAddress(\'' + winId + '\')">' +
+            '<img src="' + addrIcon + '">' +
+            '<div class="explorer-breadcrumb" id="' + winId + '-breadcrumb">' +
+            '<img class="explorer-breadcrumb-icon" src="' + addrIcon + '">' +
+            breadcrumb +
+            '</div>' +
+            '<input type="text" id="' + winId + '-address" value="' + currentVfsPath + '" onkeydown="if(event.key===\'Enter\'){window.vfsState.goTo(\'' + winId + '\', this.value); explorerBlurAddress(\'' + winId + '\');}" onblur="explorerBlurAddress(\'' + winId + '\')" style="opacity:0; position:absolute; left:0; width:100%; height:100%; padding:0 28px;">' +
+            '</div>' +
+            '<div class="explorer-search-bar">' +
+            '<img src="./img/icon/ui/search.png">' +
+            '<input type="text" id="' + winId + '-search" placeholder="Search ' + currentVfsPath.split('\\').pop() + '" oninput="window.vfsState.renderExplorer(\'' + winId + '\')">' +
+            '</div>' +
+            '</div>';
+
+        var navpane = '<div class="explorer-navpane">';
+
+        navpane += '<div class="exp-section-header">Quick access</div>';
+        navpane += buildNavItem('desk', 'Desktop', 'C:\\Users\\Anup\\Desktop', winId, { pinned: true });
+        navpane += buildNavItem('down', 'Downloads', 'C:\\Users\\Anup\\Downloads', winId, { pinned: true });
+        navpane += buildNavItem('docs', 'Documents', 'C:\\Users\\Anup\\Documents', winId, { pinned: true });
+        navpane += buildNavItem('pics', 'Pictures', 'C:\\Users\\Anup\\Pictures', winId, { pinned: true });
+        navpane += buildNavItem('music', 'Music', 'C:\\Users\\Anup\\Music', winId, { pinned: true });
+        navpane += buildNavItem('vid', 'Videos', 'C:\\Users\\Anup\\Videos', winId, { pinned: true });
+
+        navpane += '<div class="exp-nav-divider"></div>';
+
+        navpane += buildNavItem('onedrive', 'OneDrive', 'C:\\Users\\Anup', winId, {});
+
+        navpane += '<div class="exp-nav-divider"></div>';
+
+        navpane += '<div class="exp-section-header">This PC</div>';
+        navpane += buildNavItem('thispc', 'This PC', 'C:', winId, { open: currentVfsPath.split('\\').length <= 2 });
+
+        navpane += '</div>';
+
+        var searchInput = document.getElementById(winId + '-search');
+        var searchTxt = searchInput ? searchInput.value.toLowerCase() : '';
+
+        var contentInner = '';
+        if (node && node.type === 'dir') {
+            var names = Object.keys(node.children);
+            var dirs = [], files = [];
+            for (var i = 0; i < names.length; i++) {
+                if (searchTxt && names[i].toLowerCase().indexOf(searchTxt) === -1) continue;
+                if (node.children[names[i]].type === 'dir') dirs.push(names[i]);
+                else files.push(names[i]);
+            }
+            dirs.sort(function(a,b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+            files.sort(function(a,b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+            var sorted = dirs.concat(files);
+
+            if (explorerViewMode === 'details') {
+                contentInner += '<div class="explorer-details-header">' +
+                    '<span class="explorer-details-col-name">Name</span>' +
+                    '<span class="explorer-details-col-date">Date modified</span>' +
+                    '<span class="explorer-details-col-type">Type</span>' +
+                    '<span class="explorer-details-col-size">Size</span>' +
+                    '</div>';
+                for (var i = 0; i < sorted.length; i++) {
+                    var n = sorted[i];
+                    var isDir = node.children[n].type === 'dir';
+                    var selClass = explorerSelectedItems.indexOf(n) >= 0 ? ' selected' : '';
+                    contentInner += '<div class="explorer-details-row' + selClass + '" ' +
+                        'onclick="explorerSelectItem(this, \'' + n.replace(/'/g, "\\'") + '\', event)" ' +
+                        'ondblclick="window.vfsState.open(\'' + winId + '\',\'' + n.replace(/'/g, "\\'") + '\')" ' +
+                        'oncontextmenu="showExplorerContextMenu(event, \'' + winId + '\', \'' + n.replace(/'/g, "\\'") + '\')">' +
+                        getSmallIcon(n, isDir) +
+                        '<span class="explorer-details-col-name">' + n + '</span>' +
+                        '<span class="explorer-details-col-date">' + formatFileDate() + '</span>' +
+                        '<span class="explorer-details-col-type">' + getFileType(n, isDir) + '</span>' +
+                        '<span class="explorer-details-col-size">' + (isDir ? '' : '1 KB') + '</span>' +
+                        '</div>';
+                }
+            } else {
+                var iconSize = explorerViewMode === 'large' ? 64 : 48;
+                var gridCols = explorerViewMode === 'large' ? '110px' : '96px';
+                var itemsHTML = '';
+                for (var i = 0; i < sorted.length; i++) {
+                    var n = sorted[i];
+                    var isDir = node.children[n].type === 'dir';
+                    var selClass = explorerSelectedItems.indexOf(n) >= 0 ? ' selected' : '';
+                    itemsHTML += '<div class="explorer-file-item' + selClass + '" style="width:' + gridCols + ';" ' +
+                        'onclick="explorerSelectItem(this, \'' + n.replace(/'/g, "\\'") + '\', event)" ' +
+                        'ondblclick="window.vfsState.open(\'' + winId + '\',\'' + n.replace(/'/g, "\\'") + '\')" ' +
+                        'oncontextmenu="showExplorerContextMenu(event, \'' + winId + '\', \'' + n.replace(/'/g, "\\'") + '\')">' +
+                        getFileIconHTML(n, isDir, iconSize) +
+                        '<span class="explorer-file-item-name">' + n + '</span></div>';
+                }
+                contentInner = '<div class="explorer-file-grid" style="grid-template-columns:repeat(auto-fill,' + gridCols + ');">' + itemsHTML + '</div>';
+            }
+
+            if (sorted.length === 0) {
+                contentInner = searchTxt
+                    ? '<div class="explorer-empty">No items match your search.</div>'
+                    : '<div class="explorer-empty">This folder is empty.</div>';
+            }
+        }
+
+        var contentArea = '<div class="explorer-content" tabindex="-1" oncontextmenu="showExplorerContextMenu(event, \'' + winId + '\', null)" onclick="if(event.target===this||event.target.classList.contains(\'explorer-file-grid\')||event.target.classList.contains(\'explorer-content-wrap\')){var s=this.querySelectorAll(\'.selected\');for(var i=0;i<s.length;i++)s[i].classList.remove(\'selected\');explorerSelectedItems=[];}">' +
+            '<div class="explorer-content-wrap">' + contentInner + '</div></div>';
+
+        var actualCount = node && node.type === 'dir' ? Object.keys(node.children).length : 0;
+        var selCount = explorerSelectedItems.length;
+        var statusText = actualCount + ' item' + (actualCount !== 1 ? 's' : '');
+        if (selCount > 0) statusText += '  |  ' + selCount + ' selected';
+
+        var statusbar = '<div class="explorer-statusbar">' +
+            '<span>' + statusText + '</span>' +
+            '<div class="explorer-view-btns">' +
+            '<button class="explorer-view-btn' + (explorerViewMode === 'details' ? ' active' : '') + '" title="Details" onclick="explorerViewMode=\'details\'; window.vfsState.renderExplorer(\'' + winId + '\')"><span class="material-symbols-rounded" style="font-size:16px;">view_list</span></button>' +
+            '<button class="explorer-view-btn' + (explorerViewMode === 'medium' ? ' active' : '') + '" title="Medium icons" onclick="explorerViewMode=\'medium\'; window.vfsState.renderExplorer(\'' + winId + '\')"><span class="material-symbols-rounded" style="font-size:16px;">grid_view</span></button>' +
+            '<button class="explorer-view-btn' + (explorerViewMode === 'large' ? ' active' : '') + '" title="Large icons" onclick="explorerViewMode=\'large\'; window.vfsState.renderExplorer(\'' + winId + '\')"><span class="material-symbols-rounded" style="font-size:16px;">view_module</span></button>' +
+            '</div>' +
+            '</div>';
+
+        var html = '<div class="explorer-shell">' +
+            ribbon + toolbar +
+            '<div class="explorer-body">' + navpane + contentArea + '</div>' +
+            statusbar +
+            '</div>';
+
+        var el = document.getElementById(winId + '-content');
+        if (el) el.innerHTML = html;
+        return html;
+    },
+
+    open: function (winId, name) {
+        var path = currentVfsPath + '\\' + name;
+        var node = getVfsNode(path);
+        if (!node) return;
+        if (node.type === 'dir') {
+            currentVfsPath = path;
+            explorerPushHistory(currentVfsPath);
+            explorerSelectedItems = [];
+            this.renderExplorer(winId);
+        } else if (name.endsWith('.txt')) {
+            openFile(name, node.content);
+        } else if (name === 'installer.exe') {
+            runInstaller('installer.exe');
+        } else if (name === 'Cheats++.exe' || name === 'Cheats++.lnk') {
+            runInstaller('Cheats++.exe');
+        } else if (name === 'TicTacToe.lnk') {
+            openApp('TicTacToe', 'img/tictactoe.png');
+        } else if (name === 'Typing.lnk') {
+            openApp('Typing', 'img/typing.png');
+        } else if (name === 'Quiz.lnk') {
+            openApp('Quiz', 'img/quiz.png');
+        } else if (name === 'Snake.lnk') {
+            openApp('Snake', 'img/snake.png');
+        } else if (name === 'anupsharma12.com.np' || name === 'anupsharma12.com.np.lnk') {
+            window.open('https://anupsharma12.com.np', '_blank');
+        } else if (name.endsWith('.jpg') || name.endsWith('.png')) {
+            var imgSrc = name === 'wallpaper.jpg' ? 'img/wallpapers/1.jpg' : '';
+            if (imgSrc) {
+                openImageViewer(name, imgSrc);
+            }
+        }
+    },
+
+    goTo: function (winId, path) {
+        var p = path.replace(/\//g, '\\');
+        if (getVfsNode(p)) {
+            currentVfsPath = p;
+            explorerPushHistory(currentVfsPath);
+            explorerSelectedItems = [];
+            this.renderExplorer(winId);
+        }
+    },
+
+    goUp: function (winId) {
+        var parts = currentVfsPath.split('\\');
+        if (parts.length > 1) {
+            parts.pop();
+            currentVfsPath = parts.join('\\') || 'C:';
+            explorerPushHistory(currentVfsPath);
+            explorerSelectedItems = [];
+            this.renderExplorer(winId);
+        }
+    },
+
+    goBack: function (winId) {
+        if (explorerHistoryIdx > 0) {
+            explorerHistoryIdx--;
+            currentVfsPath = explorerHistory[explorerHistoryIdx];
+            explorerSelectedItems = [];
+            this.renderExplorer(winId);
+        }
+    },
+
+    goForward: function (winId) {
+        if (explorerHistoryIdx < explorerHistory.length - 1) {
+            explorerHistoryIdx++;
+            currentVfsPath = explorerHistory[explorerHistoryIdx];
+            explorerSelectedItems = [];
+            this.renderExplorer(winId);
+        }
+    },
+
+    newFolder: function (winId) {
+        closeExplorerContextMenu();
+        var node = getVfsNode(currentVfsPath);
+        if (!node || node.type !== 'dir') return;
+        var name = 'New folder';
+        var idx = 1;
+        while (node.children[name]) { name = 'New folder (' + idx + ')'; idx++; }
+        node.children[name] = { type: 'dir', children: {} };
+        this.renderExplorer(winId);
+    }
+};
+
+function explorerFocusAddress(winId) {
+    var bc = document.getElementById(winId + '-breadcrumb');
+    var inp = document.getElementById(winId + '-address');
+    if (bc) bc.style.display = 'none';
+    if (inp) { inp.style.opacity = '1'; inp.style.position = 'relative'; inp.style.padding = '0 4px'; inp.focus(); inp.select(); }
+}
+
