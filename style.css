@@ -312,3 +312,29 @@ body {
     object-fit: contain;
 }
 
+.tb-battery-mini {
+    display: flex;
+    align-items: center;
+}
+
+.tb-battery-mini svg {
+    display: block;
+}
+
+
+.tb-datetime {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1.25;
+    transition: background 0.15s;
+}
+
+.tb-datetime:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+

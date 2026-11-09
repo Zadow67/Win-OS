@@ -673,3 +673,57 @@ function explorerFocusAddress(winId) {
     if (inp) { inp.style.opacity = '1'; inp.style.position = 'relative'; inp.style.padding = '0 4px'; inp.focus(); inp.select(); }
 }
 
+function explorerBlurAddress(winId) {
+    var bc = document.getElementById(winId + '-breadcrumb');
+    var inp = document.getElementById(winId + '-address');
+    if (bc) bc.style.display = '';
+    if (inp) { inp.style.opacity = '0'; inp.style.position = 'absolute'; inp.style.padding = '0 28px'; }
+}
+
+function explorerCycleView(winId) {
+    if (explorerViewMode === 'medium') explorerViewMode = 'large';
+    else if (explorerViewMode === 'large') explorerViewMode = 'details';
+    else explorerViewMode = 'medium';
+    window.vfsState.renderExplorer(winId);
+}
+
+document.addEventListener('click', function() {
+    closeExplorerContextMenu();
+});
+
+document.addEventListener('keydown', function(e) {
+    var explorerWin = document.querySelector('.explorer-shell');
+    if (!explorerWin) return;
+    var winEl = explorerWin.closest('.window');
+    if (!winEl) return;
+    var winId = winEl.id;
+
+    if (e.ctrlKey && e.key === 'c') {
+        if (explorerSelectedItems.length) { explorerCopy(winId, explorerSelectedItems[0]); e.preventDefault(); }
+    } else if (e.ctrlKey && e.key === 'x') {
+        if (explorerSelectedItems.length) { explorerCut(winId, explorerSelectedItems[0]); e.preventDefault(); }
+    } else if (e.ctrlKey && e.key === 'v') {
+        if (explorerClipboard) { explorerPaste(winId); e.preventDefault(); }
+    } else if (e.key === 'Delete') {
+        if (explorerSelectedItems.length) { explorerDelete(winId, explorerSelectedItems[0]); e.preventDefault(); }
+    } else if (e.key === 'F2') {
+        if (explorerSelectedItems.length) { explorerRename(winId, explorerSelectedItems[0]); e.preventDefault(); }
+    } else if (e.key === 'Backspace' && !e.target.matches('input, textarea')) {
+        window.vfsState.goUp(winId); e.preventDefault();
+    } else if (e.altKey && e.key === 'ArrowLeft') {
+        window.vfsState.goBack(winId); e.preventDefault();
+    } else if (e.altKey && e.key === 'ArrowRight') {
+        window.vfsState.goForward(winId); e.preventDefault();
+    } else if (e.key === 'Enter' && explorerSelectedItems.length && !e.target.matches('input, textarea')) {
+        window.vfsState.open(winId, explorerSelectedItems[0]); e.preventDefault();
+    }
+});
+
+var cmdStates = {};
+
+function cmdGetDirFolders(pwd) {
+    var node = getVfsNode(pwd);
+    if (!node || node.type !== 'dir') return [];
+    return Object.keys(node.children);
+}
+
