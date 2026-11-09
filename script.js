@@ -374,3 +374,33 @@ function explorerRename(winId, name) {
     window.vfsState.renderExplorer(winId);
 }
 
+function explorerDelete(winId, name) {
+    closeExplorerContextMenu();
+    var parent = getVfsNode(currentVfsPath);
+    if (!parent || !parent.children[name]) return;
+    delete parent.children[name];
+    window.vfsState.renderExplorer(winId);
+}
+
+function explorerNewFile(winId) {
+    var parent = getVfsNode(currentVfsPath);
+    if (!parent || parent.type !== 'dir') return;
+    var name = 'New Text Document.txt';
+    var idx = 1;
+    while (parent.children[name]) { name = 'New Text Document (' + idx + ').txt'; idx++; }
+    parent.children[name] = { type: 'file', content: '' };
+    window.vfsState.renderExplorer(winId);
+}
+
+function explorerSelectItem(el, name, e) {
+    if (!e.ctrlKey) {
+        var items = el.closest('.explorer-content-wrap').querySelectorAll('.explorer-file-item.selected, .explorer-details-row.selected');
+        for (var i = 0; i < items.length; i++) items[i].classList.remove('selected');
+        explorerSelectedItems = [];
+    }
+    el.classList.toggle('selected');
+    var idx = explorerSelectedItems.indexOf(name);
+    if (idx >= 0) explorerSelectedItems.splice(idx, 1);
+    else explorerSelectedItems.push(name);
+}
+
