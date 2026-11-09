@@ -253,3 +253,80 @@ function buildNavItem(icon, label, path, winId, opts) {
     return html;
 }
 
+function explorerToggleTree(arrowEl, winId, path) {
+    var dropdown = arrowEl.closest('.exp-dropdown');
+    var content = dropdown.querySelector(':scope > .exp-dropcontent');
+
+    if (content) {
+        content.remove();
+        arrowEl.classList.remove('rotated');
+    } else {
+        arrowEl.classList.add('rotated');
+        var node = getVfsNode(path);
+        if (node && node.type === 'dir') {
+            var newContent = document.createElement('div');
+            newContent.className = 'exp-dropcontent';
+            var keys = Object.keys(node.children);
+            for (var c = 0; c < keys.length; c++) {
+                if (node.children[keys[c]].type === 'dir') {
+                    var childIcon = folderIconMap[keys[c]] || 'folder';
+                    newContent.innerHTML += buildNavItem(childIcon, keys[c], path + '\\' + keys[c], winId, {});
+                }
+            }
+            dropdown.appendChild(newContent);
+        }
+    }
+}
+
+function closeExplorerContextMenu() {
+    var old = document.querySelector('.explorer-ctx-menu');
+    if (old) old.remove();
+}
+
+function showExplorerContextMenu(e, winId, itemName) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeExplorerContextMenu();
+
+    var menu = document.createElement('div');
+    menu.className = 'explorer-ctx-menu';
+
+    if (itemName) {
+        var isDir = false;
+        var node = getVfsNode(currentVfsPath);
+        if (node && node.children && node.children[itemName] && node.children[itemName].type === 'dir') isDir = true;
+
+        if (isDir) {
+            menu.innerHTML =
+                '<div class="explorer-ctx-item" onclick="window.vfsState.open(\'' + winId + '\',\'' + itemName.replace(/'/g, "\\'") + '\'); closeExplorerContextMenu()"><span class="material-symbols-rounded">folder_open</span>Open</div>' +
+                '<div class="explorer-ctx-sep"></div>';
+        }
+        menu.innerHTML +=
+            '<div class="explorer-ctx-item" onclick="explorerCut(\'' + winId + '\',\'' + itemName.replace(/'/g, "\\'") + '\')"><img src="./img/icon/ui/cut.png">Cut</div>' +
+            '<div class="explorer-ctx-item" onclick="explorerCopy(\'' + winId + '\',\'' + itemName.replace(/'/g, "\\'") + '\')"><img src="./img/icon/ui/copy.png">Copy</div>' +
+            '<div class="explorer-ctx-sep"></div>' +
+            '<div class="explorer-ctx-item" onclick="explorerRename(\'' + winId + '\',\'' + itemName.replace(/'/g, "\\'") + '\')"><img src="./img/icon/ui/rename.png">Rename</div>' +
+            '<div class="explorer-ctx-item" onclick="explorerDelete(\'' + winId + '\',\'' + itemName.replace(/'/g, "\\'") + '\')"><span class="material-symbols-rounded" style="color:#c42b1c;">delete</span>Delete</div>';
+    } else {
+        menu.innerHTML =
+            '<div class="explorer-ctx-item" onclick="window.vfsState.newFolder(\'' + winId + '\'); closeExplorerContextMenu()"><img src="./img/icon/ui/new.png">New folder</div>' +
+            '<div class="explorer-ctx-item" onclick="explorerNewFile(\'' + winId + '\'); closeExplorerContextMenu()"><span class="material-symbols-rounded">note_add</span>New text document</div>' +
+            '<div class="explorer-ctx-sep"></div>';
+        if (explorerClipboard) {
+            menu.innerHTML += '<div class="explorer-ctx-item" onclick="explorerPaste(\'' + winId + '\'); closeExplorerContextMenu()"><img src="./img/icon/ui/paste.png">Paste</div>' +
+                '<div class="explorer-ctx-sep"></div>';
+        }
+        menu.innerHTML +=
+            '<div class="explorer-ctx-item" onclick="window.vfsState.renderExplorer(\'' + winId + '\'); closeExplorerContextMenu()"><span class="material-symbols-rounded">refresh</span>Refresh</div>' +
+            '<div class="explorer-ctx-sep"></div>' +
+            '<div class="explorer-ctx-item" onclick="closeExplorerContextMenu()"><span class="material-symbols-rounded">info</span>Properties</div>';
+    }
+
+    document.body.appendChild(menu);
+    var x = e.clientX, y = e.clientY;
+    if (x + menu.offsetWidth > window.innerWidth) x = window.innerWidth - menu.offsetWidth - 4;
+    if (y + menu.offsetHeight > window.innerHeight) y = window.innerHeight - menu.offsetHeight - 4;
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
+
