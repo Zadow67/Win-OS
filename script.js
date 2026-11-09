@@ -727,3 +727,166 @@ function cmdGetDirFolders(pwd) {
     return Object.keys(node.children);
 }
 
+function cmdColorCode(c) {
+    var map = {
+        '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
+        '4': '#AA0000', '5': '#AA00AA', '6': '#AA5500', '7': '#AAAAAA',
+        '8': '#555555', '9': '#5555FF', 'A': '#55FF55', 'B': '#55FFFF',
+        'C': '#FF5555', 'D': '#FF55FF', 'E': '#FFFF55', 'F': '#FFFFFF'
+    };
+    return map[(c || '').toUpperCase()] || '#FFFFFF';
+}
+
+function cmdProcessCommand(termId, cmd) {
+    var state = cmdStates[termId];
+    if (!state) return;
+
+    var stack = state.stack;
+    stack.push(state.pwd + '>' + cmd);
+
+    var arr = cmd.split(' ');
+    var type = arr[0].trim().toLowerCase();
+    var arg = arr.splice(1).join(' ').trim();
+
+    if (type === 'echo') {
+        stack.push(arg.length ? arg : 'ECHO is on.');
+    } else if (type === 'cd') {
+        if (arg.length) {
+            if (arg === '.') {
+            } else if (arg === '..') {
+                var parts = state.pwd.replace('C:\\', '').split('\\').filter(function(p) { return p; });
+                parts.pop();
+                state.pwd = parts.length ? 'C:\\' + parts.join('\\') : 'C:\\';
+            } else if (!arg.includes('.')) {
+                var dirs = cmdGetDirFolders(state.pwd);
+                var found = false;
+                for (var i = 0; i < dirs.length; i++) {
+                    if (arg.toLowerCase() === dirs[i].toLowerCase()) {
+                        state.pwd = state.pwd + '\\' + dirs[i];
+                        state.pwd = normalizeVfsPath(state.pwd);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) stack.push('The system cannot find the path specified.');
+            } else {
+                stack.push('The directory name is invalid.');
+            }
+        } else {
+            stack.push(state.pwd);
+        }
+    } else if (type === 'dir') {
+        stack.push(' Directory of ' + state.pwd);
+        stack.push('');
+        stack.push('&lt;DIR&gt;    .');
+        stack.push('&lt;DIR&gt;    ..');
+        var dirs = cmdGetDirFolders(state.pwd);
+        for (var i = 0; i < dirs.length; i++) {
+            var childNode = getVfsNode(state.pwd + '\\' + dirs[i]);
+            if (childNode && childNode.type === 'dir') {
+                stack.push('&lt;DIR&gt;    ' + dirs[i]);
+            } else {
+                stack.push('         ' + dirs[i]);
+            }
+        }
+    } else if (type === 'cls') {
+        state.stack = [];
+        state.lastCmd = 0;
+        cmdRender(termId);
+        return;
+    } else if (type === 'color') {
+        var re = /^[A-Fa-f0-9]+$/;
+        if (!arg || (arg.length < 3 && re.test(arg))) {
+            var color = '#FFFFFF', bg = '#0c0c0c';
+            if (arg.length === 2) { color = cmdColorCode(arg[1]); bg = cmdColorCode(arg[0]); }
+            else if (arg.length === 1) { color = cmdColorCode(arg[0]); }
+            var cont = document.getElementById(termId + '-cont');
+            if (cont) { cont.style.backgroundColor = bg; cont.style.color = color; }
+        } else {
+            stack.push('Sets the default console foreground and background colors.');
+            stack.push('COLOR [attr]');
+            stack.push('');
+            stack.push('  0 = Black    8 = Gray');
+            stack.push('  1 = Blue     9 = Light Blue');
+            stack.push('  2 = Green    A = Light Green');
+            stack.push('  3 = Cyan     B = Light Cyan');
+            stack.push('  4 = Red      C = Light Red');
+            stack.push('  5 = Magenta  D = Light Magenta');
+            stack.push('  6 = Brown    E = Yellow');
+            stack.push('  7 = Lt Gray  F = White');
+        }
+    } else if (type === 'date') {
+        stack.push('The current date is: ' + new Date().toLocaleDateString());
+    } else if (type === 'time') {
+        stack.push('The current time is: ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/:/g, '.') + '.' + Math.floor(Math.random() * 100));
+    } else if (type === 'systeminfo') {
+        var info = [
+            'Host Name:                 WINOS-PC',
+            'OS Name:                   WinOS 11 Home',
+            'OS Version:                10.0.22000 N/A Build 22000.51',
+            'OS Configuration:          Standalone Workstation',
+            'OS Build Type:             Multiprocessor Free',
+            'Registered Owner:          Anup',
+            'Product ID:                W1N0S-H0M3-ED1T10N',
+        ];
+        for (var i = 0; i < info.length; i++) stack.push(info[i]);
+    } else if (type === 'ipconfig') {
+        stack.push('Windows IP Configuration');
+        stack.push('');
+        stack.push('Ethernet adapter Local Area Connection:');
+        stack.push('   IPv4 Address. . . . . . . : 192.168.1.' + Math.floor(Math.random() * 254 + 1));
+        stack.push('   Subnet Mask . . . . . . . : 255.255.255.0');
+        stack.push('   Default Gateway . . . . . : 192.168.1.1');
+    } else if (type === 'exit') {
+        var winEl = document.getElementById(termId + '-cont');
+        if (winEl) {
+            var win = winEl.closest('.window');
+            if (win) closeApp(win.id);
+        }
+        return;
+    } else if (type === 'help') {
+        var helpArr = [
+            'CD             Changes the current directory.',
+            'CLS            Clears the screen.',
+            'COLOR          Sets console foreground and background colors.',
+            'DATE           Displays the date.',
+            'DIR            Lists files and subdirectories.',
+            'ECHO           Displays messages.',
+            'EXIT           Exits the command prompt.',
+            'HELP           Lists available commands.',
+            'IPCONFIG       Displays IP configuration.',
+            'SYSTEMINFO     Displays system information.',
+            'TIME           Displays the current time.',
+        ];
+        for (var i = 0; i < helpArr.length; i++) stack.push(helpArr[i]);
+    } else if (type === '') {
+    } else {
+        stack.push('\'' + type + '\' is not recognized as an internal or external command,');
+        stack.push('operable program or batch file.');
+        stack.push('');
+        stack.push('Type "help" for available commands.');
+    }
+
+    if (type.length > 0) stack.push('');
+    cmdRender(termId);
+}
+
+function cmdRender(termId) {
+    var state = cmdStates[termId];
+    if (!state) return;
+    var cont = document.getElementById(termId + '-cont');
+    if (!cont) return;
+
+    var stackDiv = cont.querySelector('.cmd-stack');
+    var html = '';
+    for (var i = 0; i < state.stack.length; i++) {
+        html += '<pre class="cmd-line">' + state.stack[i] + '</pre>';
+    }
+    stackDiv.innerHTML = html;
+
+    var promptLine = cont.querySelector('.cmd-active-line .cmd-prompt-text');
+    if (promptLine) promptLine.textContent = state.pwd + '>';
+
+    cont.scrollTop = cont.scrollHeight;
+}
+
