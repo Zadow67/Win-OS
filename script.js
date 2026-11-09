@@ -330,3 +330,47 @@ function showExplorerContextMenu(e, winId, itemName) {
     menu.style.top = y + 'px';
 }
 
+function explorerCut(winId, name) {
+    explorerClipboard = { mode: 'cut', path: currentVfsPath, names: [name] };
+    closeExplorerContextMenu();
+}
+
+function explorerCopy(winId, name) {
+    explorerClipboard = { mode: 'copy', path: currentVfsPath, names: [name] };
+    closeExplorerContextMenu();
+}
+
+function explorerPaste(winId) {
+    if (!explorerClipboard) return;
+    var srcParent = getVfsNode(explorerClipboard.path);
+    var dstParent = getVfsNode(currentVfsPath);
+    if (!srcParent || !dstParent || dstParent.type !== 'dir') return;
+
+    for (var i = 0; i < explorerClipboard.names.length; i++) {
+        var n = explorerClipboard.names[i];
+        if (!srcParent.children[n]) continue;
+        var newName = n;
+        if (dstParent.children[newName] && explorerClipboard.mode === 'copy') {
+            newName = n + ' - Copy';
+        }
+        dstParent.children[newName] = JSON.parse(JSON.stringify(srcParent.children[n]));
+        if (explorerClipboard.mode === 'cut') {
+            delete srcParent.children[n];
+        }
+    }
+    if (explorerClipboard.mode === 'cut') explorerClipboard = null;
+    window.vfsState.renderExplorer(winId);
+}
+
+function explorerRename(winId, name) {
+    closeExplorerContextMenu();
+    var newName = prompt('Rename to:', name);
+    if (!newName || newName === name) return;
+    var parent = getVfsNode(currentVfsPath);
+    if (!parent || !parent.children[name]) return;
+    if (parent.children[newName]) { alert('An item with that name already exists.'); return; }
+    parent.children[newName] = parent.children[name];
+    delete parent.children[name];
+    window.vfsState.renderExplorer(winId);
+}
+
