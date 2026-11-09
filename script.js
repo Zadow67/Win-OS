@@ -104,3 +104,76 @@ function normalizeVfsPath(winPath) {
     return toWinPath(out.join('/'));
 }
 
+function resolvePath(basePath, relativePath) {
+    if (!relativePath) return basePath;
+    var rel = toUnixPath(relativePath);
+    if (rel.match(/^[A-Z]:/i)) return toWinPath(rel);
+    var base = toUnixPath(basePath);
+    var combined = base + '/' + rel;
+    var parts = combined.split('/');
+    var result = [];
+    for (var i = 0; i < parts.length; i++) {
+        if (parts[i] === '' || parts[i] === '.') continue;
+        if (parts[i] === '..') {
+            if (result.length > 1) result.pop();
+        } else {
+            result.push(parts[i]);
+        }
+    }
+    return toWinPath(result.join('/'));
+}
+
+
+var explorerHistory = [];
+var explorerHistoryIdx = -1;
+var explorerViewMode = 'medium'; 
+var explorerSelectedItems = [];
+var explorerClipboard = null; 
+
+function explorerPushHistory(path) {
+    if (explorerHistory[explorerHistoryIdx] === path) return;
+    explorerHistory.splice(explorerHistoryIdx + 1);
+    explorerHistory.push(path);
+    explorerHistoryIdx = explorerHistory.length - 1;
+}
+
+var folderIconMap = {
+    'Desktop': 'desk',
+    'Documents': 'docs',
+    'Downloads': 'down',
+    'Pictures': 'pics',
+    'Music': 'music',
+    'Videos': 'vid',
+    'OneDrive': 'onedrive',
+    'This PC': 'thispc',
+    'Quick access': 'star',
+    'Home': 'user'
+};
+
+function getFileIconHTML(name, isDir, size) {
+    size = size || 48;
+    if (isDir) {
+        var folderImg = folderIconMap[name] || 'folder';
+        return '<img class="exp-file-icon" src="./img/icon/win/' + folderImg + '.png" width="' + size + '" height="' + size + '">';
+    }
+    var ext = name.split('.').pop().toLowerCase();
+    var iconMap = {
+        'txt': 'docs', 'doc': 'docs', 'docx': 'docs', 'pdf': 'docs',
+        'jpg': 'pics', 'jpeg': 'pics', 'png': 'pics', 'gif': 'pics', 'bmp': 'pics', 'svg': 'pics',
+        'mp3': 'music', 'wav': 'music', 'flac': 'music', 'ogg': 'music', 'm3u': 'music',
+        'mp4': 'vid', 'avi': 'vid', 'mkv': 'vid', 'mov': 'vid', 'wmv': 'vid'
+    };
+    if (iconMap[ext]) return '<img class="exp-file-icon" src="./img/icon/win/' + iconMap[ext] + '.png" width="' + size + '" height="' + size + '">';
+    if (ext === 'exe') return '<span class="material-symbols-rounded" style="font-size:' + size + 'px; color:#0078d4;">deployed_code</span>';
+    if (ext === 'lnk') return '<span class="material-symbols-rounded" style="font-size:' + size + 'px; color:#666;">link</span>';
+    return '<img class="exp-file-icon" src="./img/icon/win/docs.png" width="' + size + '" height="' + size + '">';
+}
+
+function getSmallIcon(name, isDir) {
+    if (isDir) {
+        var folderImg = folderIconMap[name] || 'folder';
+        return '<img src="./img/icon/win/' + folderImg + '-sm.png" onerror="this.src=\'./img/icon/win/folder-sm.png\'" width="18" height="18">';
+    }
+    return getFileIconHTML(name, false, 18);
+}
+
